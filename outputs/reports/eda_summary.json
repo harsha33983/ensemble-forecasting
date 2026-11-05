@@ -1,0 +1,30 @@
+{
+    "dataset_dimensions": {
+        "rows": 17379,
+        "columns": 18
+    },
+    "target_statistics": {
+        "count": 17379,
+        "mean": 189.46,
+        "std": 181.39,
+        "min": 1.0,
+        "q25": 40.0,
+        "median": 142.0,
+        "q75": 281.0,
+        "max": 977.0,
+        "skew": 1.277,
+        "kurtosis": 1.417,
+        "iqr": 241.0
+    },
+    "generated_plots": [
+        "target_distribution.png",
+        "correlation_heatmap.png",
+        "feature_correlation.png",
+        "timeseries_trend.png",
+        "monthly_demand.png",
+        "weekly_demand.png",
+        "hourly_demand.png",
+        "outlier_analysis.png",
+        "seasonal_patterns.png"
+    ]
+}

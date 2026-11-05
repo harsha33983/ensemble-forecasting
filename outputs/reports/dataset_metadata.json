@@ -1,0 +1,35 @@
+{
+    "name": "UCI Bike Sharing Dataset",
+    "source_url": "https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip",
+    "license": "Creative Commons Attribution 4.0 International (CC BY 4.0) / Citation Required",
+    "citation": "Fanaee-T, Hadi, and Gama, Joao, 'Event labeling combining ensemble detectors and background knowledge', Progress in Artificial Intelligence (2013): pp. 1-15, Springer Berlin Heidelberg, doi:10.1007/s13748-013-0040-3.",
+    "target_variable": "cnt",
+    "target_description": "Total hourly count of rental bikes (sum of casual and registered users)",
+    "granularity": "Hourly (17,379 observations) and Daily (731 observations)",
+    "timeframe": "2011-01-01 00:00:00 to 2012-12-31 23:00:00 (2 years)",
+    "feature_descriptions": {
+        "instant": "Record index (sequential)",
+        "dteday": "Date of observation (YYYY-MM-DD)",
+        "season": "Season (1: Winter/Spring start, 2: Summer, 3: Fall, 4: Winter)",
+        "yr": "Year (0: 2011, 1: 2012)",
+        "mnth": "Month of the year (1 to 12)",
+        "hr": "Hour of the day (0 to 23)",
+        "holiday": "Whether the day is a holiday (1: Yes, 0: No)",
+        "weekday": "Day of the week (0: Sunday to 6: Saturday)",
+        "workingday": "Working day indicator (1: Neither weekend nor holiday, 0: Weekend or holiday)",
+        "weathersit": "Weather category (1: Clear/Few clouds, 2: Mist/Cloudy, 3: Light Rain/Snow, 4: Heavy Rain/Ice/Fog)",
+        "temp": "Normalized temperature in Celsius (divided by 41)",
+        "atemp": "Normalized feeling temperature in Celsius (divided by 50)",
+        "hum": "Normalized relative humidity (divided by 100)",
+        "windspeed": "Normalized wind speed (divided by 67)",
+        "casual": "Count of unregistered casual users (leakage component)",
+        "registered": "Count of registered annual/monthly members (leakage component)",
+        "cnt": "Count of total rental bikes (prediction target)"
+    },
+    "limitations": [
+        "Aggregated city-level data for Washington, D.C.; cannot resolve spatial micro-movements.",
+        "Occasional missing hours during extreme weather events or late night maintenance.",
+        "Weather attributes are pre-normalized in the original UCI release.",
+        "Strong structural break / secular growth between 2011 and 2012 due to system adoption."
+    ]
+}
