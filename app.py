@@ -566,7 +566,6 @@ elif selected_page == "5. Forecasting":
                         lower_col=low_col,
                         upper_col=up_col,
                     )
-                    )
                     st.success(f"✅ Successfully persisted {saved_count} forecast hours to SQLite database!")
             with c_dl:
                 csv_data = forecast_df.to_csv(index=False).encode("utf-8")
