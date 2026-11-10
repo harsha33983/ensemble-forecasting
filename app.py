@@ -472,11 +472,27 @@ elif selected_page == "5. Forecasting":
                             seed = p_df.tail(200)[["datetime", "temp", "atemp", "hum", "windspeed", "weathersit", TARGET_COLUMN]].copy()
                             forecast_result = engine.forecast(seed, horizon_hours=horizon_hours)
 
+                            # Ensure canonical column names exist regardless of origin
+                            if "timestamp" not in forecast_result.columns and "datetime" in forecast_result.columns:
+                                forecast_result["timestamp"] = forecast_result["datetime"]
+                            if "predicted_demand" not in forecast_result.columns and "forecast_cnt" in forecast_result.columns:
+                                forecast_result["predicted_demand"] = forecast_result["forecast_cnt"]
+                            if "lower_bound" not in forecast_result.columns and "lower_95" in forecast_result.columns:
+                                forecast_result["lower_bound"] = forecast_result["lower_95"]
+                            if "upper_bound" not in forecast_result.columns and "upper_95" in forecast_result.columns:
+                                forecast_result["upper_bound"] = forecast_result["upper_95"]
+
                             # Apply weather scenario adjustment if requested
                             if sim_temp != 0.0:
-                                forecast_result["predicted_demand"] = np.clip(forecast_result["predicted_demand"] * (1.0 + sim_temp * 0.015), 0, None).round(2)
-                                forecast_result["lower_bound"] = np.clip(forecast_result["lower_bound"] * (1.0 + sim_temp * 0.015), 0, None).round(2)
-                                forecast_result["upper_bound"] = (forecast_result["upper_bound"] * (1.0 + sim_temp * 0.015)).round(2)
+                                for c_p in ["predicted_demand", "forecast_cnt"]:
+                                    if c_p in forecast_result.columns:
+                                        forecast_result[c_p] = np.clip(forecast_result[c_p] * (1.0 + sim_temp * 0.015), 0, None).round(2)
+                                for c_l in ["lower_bound", "lower_95"]:
+                                    if c_l in forecast_result.columns:
+                                        forecast_result[c_l] = np.clip(forecast_result[c_l] * (1.0 + sim_temp * 0.015), 0, None).round(2)
+                                for c_u in ["upper_bound", "upper_95"]:
+                                    if c_u in forecast_result.columns:
+                                        forecast_result[c_u] = (forecast_result[c_u] * (1.0 + sim_temp * 0.015)).round(2)
 
                             st.session_state["last_forecast"] = forecast_result
                         else:
@@ -488,14 +504,20 @@ elif selected_page == "5. Forecasting":
 
             forecast_df = st.session_state["last_forecast"]
 
+            # Dynamic column key resolution
+            ts_col = "timestamp" if "timestamp" in forecast_df.columns else "datetime"
+            pred_col = "predicted_demand" if "predicted_demand" in forecast_df.columns else "forecast_cnt"
+            low_col = "lower_bound" if "lower_bound" in forecast_df.columns else "lower_95"
+            up_col = "upper_bound" if "upper_bound" in forecast_df.columns else "upper_95"
+
             st.markdown(f"### 📈 Projected Demand ({horizon_hours}-Hour Horizon)")
 
             # Interactive Plotly Forecast Chart with Confidence Interval Ribbon
             fig = go.Figure()
             # Upper bound
             fig.add_trace(go.Scatter(
-                x=forecast_df["timestamp"],
-                y=forecast_df["upper_bound"],
+                x=forecast_df[ts_col],
+                y=forecast_df[up_col],
                 mode="lines",
                 line=dict(width=0),
                 showlegend=False,
@@ -503,18 +525,18 @@ elif selected_page == "5. Forecasting":
             ))
             # Lower bound with shaded area
             fig.add_trace(go.Scatter(
-                x=forecast_df["timestamp"],
-                y=forecast_df["lower_bound"],
+                x=forecast_df[ts_col],
+                y=forecast_df[low_col],
                 mode="lines",
                 line=dict(width=0),
                 fill="tonexty",
                 fillcolor="rgba(59, 130, 246, 0.15)",
-                name="80% Prediction Interval",
+                name="95% Prediction Interval",
             ))
             # Predicted Value
             fig.add_trace(go.Scatter(
-                x=forecast_df["timestamp"],
-                y=forecast_df["predicted_demand"],
+                x=forecast_df[ts_col],
+                y=forecast_df[pred_col],
                 mode="lines+markers",
                 line=dict(color="#2563eb", width=2.5),
                 marker=dict(size=4),
@@ -539,10 +561,11 @@ elif selected_page == "5. Forecasting":
                     saved_count = db_service.store_forecasts_df(
                         model_run_id=run_id,
                         df=forecast_df,
-                        date_col="timestamp",
-                        predicted_col="predicted_demand",
-                        lower_col="lower_bound",
-                        upper_col="upper_bound",
+                        date_col=ts_col,
+                        predicted_col=pred_col,
+                        lower_col=low_col,
+                        upper_col=up_col,
+                    )
                     )
                     st.success(f"✅ Successfully persisted {saved_count} forecast hours to SQLite database!")
             with c_dl:

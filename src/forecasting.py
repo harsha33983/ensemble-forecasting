@@ -282,13 +282,17 @@ class ForecastingEngine:
             lower_95 = max(0.0, pred_step - 1.96 * est_rmse * np.sqrt(1 + 0.02 * step))
             upper_95 = pred_step + 1.96 * est_rmse * np.sqrt(1 + 0.02 * step)
 
-            # Record prediction
+            # Record prediction with both standard and alternative column aliases
             forecast_records.append({
                 "datetime": curr_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": curr_dt.strftime("%Y-%m-%d %H:%M:%S"),
                 "hour": hr,
                 "forecast_cnt": round(pred_step, 1),
+                "predicted_demand": round(pred_step, 1),
                 "lower_95": round(lower_95, 1),
+                "lower_bound": round(lower_95, 1),
                 "upper_95": round(upper_95, 1),
+                "upper_bound": round(upper_95, 1),
             })
 
             # Append prediction to recursive historical buffer
