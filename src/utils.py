@@ -53,10 +53,41 @@ def save_pickle(obj: Any, file_path: Union[str, Path]) -> None:
 
 
 def load_pickle(file_path: Union[str, Path]) -> Any:
-    """Load an object using joblib (supports compressed and uncompressed files)."""
+    """Load an object using joblib with cross-environment and version compatibility mapping."""
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"Pickle file not found: {path}")
+
+    # Ensure application root directory is at head of sys.path
+    import sys
+    root_dir = str(Path(__file__).resolve().parent.parent)
+    if root_dir not in sys.path:
+        sys.path.insert(0, root_dir)
+
+    # Patch sys.modules for cross-platform / cross-version unpickling
+    try:
+        import src.ensemble_model
+        sys.modules.setdefault("ensemble_model", src.ensemble_model)
+        sys.modules.setdefault("src.ensemble_model", src.ensemble_model)
+    except Exception:
+        pass
+
+    try:
+        import sklearn._loss._loss
+        sys.modules.setdefault("_loss", sklearn._loss._loss)
+        sys.modules.setdefault("sklearn._loss._loss", sklearn._loss._loss)
+    except Exception:
+        pass
+
+    try:
+        import numpy as np
+        if hasattr(np, "_core") and not hasattr(np, "core"):
+            sys.modules.setdefault("numpy.core", np._core)
+        elif hasattr(np, "core") and not hasattr(np, "_core"):
+            sys.modules.setdefault("numpy._core", np.core)
+    except Exception:
+        pass
+
     return joblib.load(path)
 
 

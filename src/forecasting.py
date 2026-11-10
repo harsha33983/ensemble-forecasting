@@ -39,17 +39,58 @@ class ForecastingEngine:
         self._load_resources()
 
     def _load_resources(self) -> None:
-        """Load model weights and feature schema metadata."""
+        """Load model weights and feature schema metadata with cross-platform fallback."""
         if self.model_path.exists():
-            self.model = load_pickle(self.model_path)
-            logger.info("ForecastingEngine loaded ensemble model from %s", self.model_path)
+            try:
+                self.model = load_pickle(self.model_path)
+                logger.info("ForecastingEngine loaded ensemble model from %s", self.model_path)
+            except Exception as e:
+                logger.warning(
+                    "Could not load pre-trained model from %s (%s). Generating dynamic fallback model.",
+                    self.model_path,
+                    e,
+                )
+                self.model = self._train_fallback_model()
         else:
-            logger.warning("Ensemble model not found at %s. ForecastingEngine requires trained model.", self.model_path)
+            logger.warning("Ensemble model not found at %s. Generating dynamic fallback model.", self.model_path)
+            self.model = self._train_fallback_model()
 
         if self.metadata_path.exists():
-            self.metadata = load_json(self.metadata_path)
-            self.feature_names = self.metadata.get("feature_names", [])
-            logger.info("Loaded metadata with %d expected features.", len(self.feature_names))
+            try:
+                self.metadata = load_json(self.metadata_path)
+                self.feature_names = self.metadata.get("feature_names", [])
+                logger.info("Loaded metadata with %d expected features.", len(self.feature_names))
+            except Exception as e:
+                logger.warning("Could not read metadata from %s: %s", self.metadata_path, e)
+
+    def _train_fallback_model(self) -> Any:
+        """Dynamically fit a GradientBoostingRegressor if pre-compiled model cannot be deserialized."""
+        try:
+            from sklearn.ensemble import GradientBoostingRegressor
+            from src.config import PROCESSED_FILE, TARGET_COLUMN
+
+            processed_path = Path(PROCESSED_FILE)
+            if processed_path.exists():
+                df = pd.read_csv(processed_path)
+                drop_cols = ["datetime", "dteday", TARGET_COLUMN]
+                feature_cols = [c for c in df.columns if c not in drop_cols]
+
+                # Train quickly on recent 5,000 observations
+                train_slice = df.tail(5000)
+                X = train_slice[feature_cols]
+                y = train_slice[TARGET_COLUMN]
+
+                fallback = GradientBoostingRegressor(
+                    n_estimators=100, max_depth=5, learning_rate=0.1, random_state=RANDOM_STATE
+                )
+                fallback.fit(X, y)
+                if not self.feature_names:
+                    self.feature_names = feature_cols
+                logger.info("Successfully trained dynamic fallback model with %d features.", len(feature_cols))
+                return fallback
+        except Exception as err:
+            logger.error("Failed to fit dynamic fallback model: %s", err)
+        return None
 
     def validate_historical_context(self, history_df: pd.DataFrame) -> None:
         """Verify that historical context contains sufficient sequence depth and required columns."""

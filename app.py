@@ -12,10 +12,31 @@ Interactive 8-page dashboard:
 8. Database Explorer
 """
 
+import sys
 from datetime import datetime
 import json
 import os
 from pathlib import Path
+
+# Ensure application root directory is at the head of sys.path for Streamlit Cloud
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+# Cross-environment unpickling compatibility hooks for Streamlit Cloud
+try:
+    import src.ensemble_model
+    sys.modules.setdefault("ensemble_model", src.ensemble_model)
+    sys.modules.setdefault("src.ensemble_model", src.ensemble_model)
+except Exception:
+    pass
+
+try:
+    import sklearn._loss._loss
+    sys.modules.setdefault("_loss", sklearn._loss._loss)
+    sys.modules.setdefault("sklearn._loss._loss", sklearn._loss._loss)
+except Exception:
+    pass
 
 import numpy as np
 import pandas as pd
@@ -442,23 +463,27 @@ elif selected_page == "5. Forecasting":
         if generate_btn or "last_forecast" in st.session_state:
             if generate_btn:
                 with st.spinner(f"Computing {horizon_hours}-hour recursive forecast with Stacking Ensemble..."):
-                    engine = ForecastingEngine()
-                    # Load seed from processed file
-                    processed_path = Path(PROCESSED_FILE)
-                    if processed_path.exists():
-                        p_df = pd.read_csv(processed_path)
-                        seed = p_df.tail(200)[["datetime", "temp", "atemp", "hum", "windspeed", "weathersit", TARGET_COLUMN]].copy()
-                        forecast_result = engine.forecast(seed, horizon_hours=horizon_hours)
+                    try:
+                        engine = ForecastingEngine()
+                        # Load seed from processed file
+                        processed_path = Path(PROCESSED_FILE)
+                        if processed_path.exists():
+                            p_df = pd.read_csv(processed_path)
+                            seed = p_df.tail(200)[["datetime", "temp", "atemp", "hum", "windspeed", "weathersit", TARGET_COLUMN]].copy()
+                            forecast_result = engine.forecast(seed, horizon_hours=horizon_hours)
 
-                        # Apply weather scenario adjustment if requested
-                        if sim_temp != 0.0:
-                            forecast_result["predicted_demand"] = np.clip(forecast_result["predicted_demand"] * (1.0 + sim_temp * 0.015), 0, None).round(2)
-                            forecast_result["lower_bound"] = np.clip(forecast_result["lower_bound"] * (1.0 + sim_temp * 0.015), 0, None).round(2)
-                            forecast_result["upper_bound"] = (forecast_result["upper_bound"] * (1.0 + sim_temp * 0.015)).round(2)
+                            # Apply weather scenario adjustment if requested
+                            if sim_temp != 0.0:
+                                forecast_result["predicted_demand"] = np.clip(forecast_result["predicted_demand"] * (1.0 + sim_temp * 0.015), 0, None).round(2)
+                                forecast_result["lower_bound"] = np.clip(forecast_result["lower_bound"] * (1.0 + sim_temp * 0.015), 0, None).round(2)
+                                forecast_result["upper_bound"] = (forecast_result["upper_bound"] * (1.0 + sim_temp * 0.015)).round(2)
 
-                        st.session_state["last_forecast"] = forecast_result
-                    else:
-                        st.error("Processed data file not found to seed forecast.")
+                            st.session_state["last_forecast"] = forecast_result
+                        else:
+                            st.error("Processed data file not found to seed forecast.")
+                            st.stop()
+                    except Exception as exc:
+                        st.error(f"Error executing forecasting engine: {exc}")
                         st.stop()
 
             forecast_df = st.session_state["last_forecast"]
